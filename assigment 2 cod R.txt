@@ -1,0 +1,86 @@
+#Read Dataset
+data <- read.csv("transgender_hc_ch2.csv")
+
+# ========================================
+# BRFSS 2014 - Transgender Participants
+# Steps 2 to 7 (Base R only)
+# ========================================
+
+# 2) Filter only transgender participants (TRNSGNDR = 1,2,3)
+data_trans <- subset(data, TRNSGNDR %in% c(1, 2, 3))
+
+# 3) Select only the variables of interest
+data_trans <- data_trans[, c("TRNSGNDR", "PHYSHLTH", "X_RACE", "X_INCOMG", 
+                             "X_EDUCAG", "X_AGEG5YR", "X_AGE80")]
+
+# 4) Check and fix variable types
+data_trans$TRNSGNDR <- factor(data_trans$TRNSGNDR,
+                              levels = c(1, 2, 3),
+                              labels = c("Male-to-female", "Female-to-male", "Gender non-conforming"))
+
+data_trans$X_RACE <- factor(data_trans$X_RACE,
+                            levels = c(1, 2, 3, 4, 5, 6, 7),
+                            labels = c("White", "Black", "Asian", "American Indian/Alaska Native",
+                                       "Hispanic", "Other", "Multiracial"))
+
+data_trans$X_INCOMG <- factor(data_trans$X_INCOMG,
+                              levels = c(1, 2, 3, 4, 5, 6),
+                              labels = c("<15k", "15-25k", "25-35k", "35-50k", "50-75k", "75k+"))
+
+data_trans$X_EDUCAG <- factor(data_trans$X_EDUCAG,
+                              levels = c(1, 2, 3, 4, 5),
+                              labels = c("Elementary", "Some high school", "High school grad", 
+                                         "Some college", "College grad"))
+
+data_trans$X_AGEG5YR <- factor(data_trans$X_AGEG5YR,
+                               levels = c(1:13),
+                               labels = c("18-24", "25-29", "30-34", "35-39", "40-44", 
+                                          "45-49", "50-54", "55-59", "60-64", 
+                                          "65-69", "70-74", "75-79", "80+"))
+
+# Recode PHYSHLTH: 77/99 = missing, 88 = 0 days
+data_trans$PHYSHLTH[data_trans$PHYSHLTH %in% c(77, 99)] <- NA
+data_trans$PHYSHLTH[data_trans$PHYSHLTH == 88] <- 0
+
+# 6) Descriptive statistics
+
+# Helper function: frequency + percentage table
+cat_table_df <- function(df, var) {
+  freq <- table(df[[var]])
+  pct <- round(prop.table(freq) * 100, 1)
+  data.frame(
+    Variable = var,
+    Category = names(freq),
+    Frequency = as.vector(freq),
+    Percent = paste0(pct, "%")
+  )
+}
+
+# Apply function to categorical variables
+cat_vars <- c("TRNSGNDR", "X_RACE", "X_INCOMG", "X_EDUCAG", "X_AGEG5YR")
+cat_summaries <- do.call(rbind, lapply(cat_vars, function(v) cat_table_df(data_trans, v)))
+
+# Numeric summaries for PHYSHLTH and Age
+num_summaries <- data.frame(
+  Variable = c("PHYSHLTH (days poor physical health)", "Age (X_AGE80)"),
+  N = c(sum(!is.na(data_trans$PHYSHLTH)), sum(!is.na(data_trans$X_AGE80))),
+  Missing = c(sum(is.na(data_trans$PHYSHLTH)), sum(is.na(data_trans$X_AGE80))),
+  Mean = c(mean(data_trans$PHYSHLTH, na.rm = TRUE), mean(data_trans$X_AGE80, na.rm = TRUE)),
+  SD = c(sd(data_trans$PHYSHLTH, na.rm = TRUE), sd(data_trans$X_AGE80, na.rm = TRUE)),
+  Median = c(median(data_trans$PHYSHLTH, na.rm = TRUE), median(data_trans$X_AGE80, na.rm = TRUE)),
+  IQR = c(IQR(data_trans$PHYSHLTH, na.rm = TRUE), IQR(data_trans$X_AGE80, na.rm = TRUE)),
+  Min = c(min(data_trans$PHYSHLTH, na.rm = TRUE), min(data_trans$X_AGE80, na.rm = TRUE)),
+  Max = c(max(data_trans$PHYSHLTH, na.rm = TRUE), max(data_trans$X_AGE80, na.rm = TRUE))
+)
+
+# 7) Well-formatted tables (Base R)
+
+cat("===== Categorical Variables =====\n")
+print(cat_summaries, row.names = FALSE)
+
+cat("\n===== Numeric Variables =====\n")
+print(num_summaries, row.names = FALSE)
+
+# Optional: Export to CSV for Word/Excel
+write.csv(cat_summaries, "categorical_results.csv", row.names = FALSE)
+write.csv(num_summaries, "numeric_results.csv", row.names = FALSE)
